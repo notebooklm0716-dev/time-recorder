@@ -1,59 +1,73 @@
-/* 時刻付き録画 - Service Worker */
-const CACHE_NAME = 'timestamp-rec-v1';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon.svg',
-  './icon-192.png',
-  './icon-512.png'
+const CACHE_NAME = "video-rec-pwa-v2";
+const APP_SHELL = [
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./icon.svg",
+  "./icon-192x192.png",
+  "./icon-512x512.png",
+  "./apple-touch-icon.png",
+  "./maskable-512x512.png"
 ];
 
-// インストール時にアセットをキャッシュ
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting())
-  );
+self.addEventListener("install", event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(APP_SHELL);
+    await self.skipWaiting();
+  })());
 });
 
-// 古いキャッシュを削除
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
-  );
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key.startsWith("video-rec-pwa-") && key !== CACHE_NAME)
+      .map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
 
-// ネットワーク優先、失敗時はキャッシュから返す（オフライン対応）
-self.addEventListener('fetch', (event) => {
-  // GET以外やchrome-extensionなどは無視
-  if (event.request.method !== 'GET') return;
-  if (!event.request.url.startsWith(self.location.origin)) return;
+self.addEventListener("fetch", event => {
+  const request = event.request;
+  if (request.method !== "GET") return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // 成功したレスポンスをキャッシュに保存（同一オリジンのみ）
-        if (response && response.status === 200 && response.type === 'basic') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (request.mode === "navigate") {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request);
+        if (response && response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put("./index.html", response.clone());
         }
         return response;
-      })
-      .catch(() => {
-        // ネットワーク失敗時はキャッシュを返す
-        return caches.match(event.request).then((cached) => {
-          return cached || caches.match('./index.html');
-        });
-      })
-  );
+      } catch (_) {
+        return (await caches.match(request)) ||
+               (await caches.match("./index.html")) ||
+               new Response("オフラインです。初回にオンラインでアプリを開いてキャッシュしてください。", {
+                 status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" }
+               });
+      }
+    })());
+    return;
+  }
+
+  event.respondWith((async () => {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    try {
+      const response = await fetch(request);
+      if (response && response.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, response.clone());
+      }
+      return response;
+    } catch (_) {
+      return new Response("このファイルはオフラインキャッシュにありません。", {
+        status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" }
+      });
+    }
+  })());
 });

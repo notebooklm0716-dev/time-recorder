@@ -1,562 +1,148 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#020617">
-  <meta name="description" content="撮影時刻と録画経過時間を映像に記録するカメラアプリ">
-  <title>時刻付き録画</title>
-  <link rel="manifest" href="./manifest.json">
-  <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <style>
-    :root { color-scheme: dark; --bg:#020617; --panel:#0f172a; --line:#334155; --text:#f8fafc; --muted:#cbd5e1; --accent:#2563eb; }
-    * { box-sizing:border-box; }
-    html, body { margin:0; width:100%; height:100%; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif; }
-    body { overflow:hidden; }
-    button, input { font:inherit; }
-    button { border:0; cursor:pointer; touch-action:manipulation; }
-    button:disabled { opacity:.45; cursor:not-allowed; }
-    .app { width:100%; height:100%; height:100dvh; display:flex; flex-direction:column; background:#000; }
-    .preview { position:relative; flex:1; min-height:0; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#000; }
-    #recordCanvas { width:100%; height:100%; object-fit:contain; display:block; }
-    #webcam { display:none; }
-    .overlay { position:absolute; inset:0; padding: max(12px, env(safe-area-inset-top)) 14px 14px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; gap:12px; }
-    .stamp { color:#fff; font-weight:800; line-height:1.2; white-space:nowrap; text-shadow:0 2px 5px #000, 0 0 3px #000; font-variant-numeric:tabular-nums; }
-    #uiClock { text-align:left; }
-    #uiTimer { text-align:right; }
-    .controls { position:absolute; left:0; right:0; bottom:max(18px, env(safe-area-inset-bottom)); display:flex; justify-content:center; align-items:center; gap:14px; padding:0 12px; }
-    .control { min-width:52px; min-height:52px; border-radius:999px; padding:12px; color:white; background:#1e293bdf; box-shadow:0 4px 18px #0008; display:inline-flex; align-items:center; justify-content:center; }
-    .record { padding:14px 22px; gap:10px; background:#dc2626; font-weight:800; min-width:150px; }
-    .record.stopped { background:#15803d; }
-    .dot { width:13px; height:13px; border-radius:50%; background:white; }
-    .recording .dot { animation:pulse 1.2s infinite; }
-    @keyframes pulse { 50% { opacity:.35; } }
-    .status { position:absolute; left:12px; right:12px; bottom:94px; text-align:center; font-size:13px; color:#fef3c7; text-shadow:0 1px 4px #000; pointer-events:none; }
-    .modal { position:fixed; inset:0; z-index:5; display:flex; align-items:center; justify-content:center; padding:18px; background:#000c; }
-    .modal[hidden] { display:none; }
-    .dialog { width:min(100%,440px); max-height:90dvh; overflow:auto; padding:22px; border:1px solid #334155; border-radius:18px; background:#0f172a; box-shadow:0 20px 60px #0009; }
-    .dialog h2 { margin:0 0 20px; font-size:20px; }
-    .field { margin:18px 0; }
-    .field label { display:block; margin-bottom:10px; color:#cbd5e1; font-size:14px; }
-    .choices { display:flex; gap:8px; }
-    .choices button { flex:1; padding:10px 6px; border:1px solid #475569; border-radius:10px; background:#1e293b; color:#fff; }
-    .choices button[aria-pressed="true"] { border-color:#60a5fa; background:#1d4ed833; outline:2px solid #3b82f6; }
-    .colors { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-    .color { height:42px; border:2px solid #64748b; border-radius:10px; }
-    .color[aria-pressed="true"] { outline:3px solid #60a5fa; outline-offset:2px; }
-    .dialog-actions { display:flex; gap:10px; margin-top:22px; }
-    .primary, .secondary { flex:1; padding:12px; border-radius:10px; color:#fff; font-weight:700; }
-    .primary { background:#2563eb; } .secondary { background:#334155; }
-    .help { font-size:13px; color:#cbd5e1; line-height:1.6; }
-    #previewVideo { width:100%; max-height:45dvh; background:#000; border-radius:10px; }
-    .error { color:#fecaca; white-space:pre-wrap; line-height:1.5; }
-    @media (orientation:landscape) { .controls { bottom:12px; } .control { min-height:46px; min-width:46px; } .status { bottom:72px; } }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#020617">
+<meta name="description" content="撮影時刻と録画経過時間を映像に記録する録画アプリ">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="時刻録画">
+<title>時刻付き録画</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<style>
+:root{color-scheme:dark;background:#020617;color:#f8fafc;font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#020617}body{overflow:hidden}button{font:inherit;touch-action:manipulation;cursor:pointer;border:0}button:disabled{opacity:.45;cursor:not-allowed}
+.app{height:100%;height:100dvh;display:flex;flex-direction:column;background:#000}.preview{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}
+#camera{display:none}#canvas{display:block;width:100%;height:100%;object-fit:contain}
+.overlay{position:absolute;inset:0;padding:max(12px,env(safe-area-inset-top)) 14px 14px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;pointer-events:none}
+.stamp{font-weight:800;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums;text-shadow:0 2px 5px #000,0 0 3px #000}
+.controls{position:absolute;left:0;right:0;bottom:max(18px,env(safe-area-inset-bottom));display:flex;justify-content:center;align-items:center;gap:14px;padding:0 10px}
+.control{min-width:52px;min-height:52px;padding:12px;border-radius:999px;background:#1e293be8;color:#fff;box-shadow:0 4px 18px #0008;display:inline-flex;align-items:center;justify-content:center}
+.record{min-width:150px;padding:14px 22px;gap:10px;background:#dc2626;font-weight:800}.record.stopped{background:#15803d}.dot{width:13px;height:13px;border-radius:50%;background:white}
+.status{position:absolute;left:12px;right:12px;bottom:94px;text-align:center;font-size:13px;color:#fef3c7;text-shadow:0 1px 4px #000;pointer-events:none}
+.modal{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:18px;background:#000c}.modal[hidden]{display:none}
+.dialog{width:min(100%,440px);max-height:90dvh;overflow:auto;padding:22px;border:1px solid #334155;border-radius:18px;background:#0f172a;box-shadow:0 20px 60px #0009}
+.dialog h2{margin:0 0 20px;font-size:20px}.field{margin:18px 0}.field label{display:block;margin-bottom:10px;color:#cbd5e1;font-size:14px}
+.choices{display:flex;gap:8px}.choices button{flex:1;padding:10px 6px;border:1px solid #475569;border-radius:10px;background:#1e293b;color:#fff}.choices button[aria-pressed=true]{border-color:#60a5fa;background:#1d4ed833;outline:2px solid #3b82f6}
+.colors{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.color{height:42px;border:2px solid #64748b;border-radius:10px}.color[aria-pressed=true]{outline:3px solid #60a5fa;outline-offset:2px}
+.actions{display:flex;gap:10px;margin-top:22px}.primary,.secondary{flex:1;padding:12px;border-radius:10px;color:#fff;font-weight:700}.primary{background:#2563eb}.secondary{background:#334155}
+.help{font-size:13px;color:#cbd5e1;line-height:1.6}#savedVideo{width:100%;max-height:45dvh;background:#000;border-radius:10px}.error{color:#fecaca;white-space:pre-wrap;line-height:1.5}
+@media(orientation:landscape){.controls{bottom:10px}.control{min-height:46px;min-width:46px}.status{bottom:70px}}
+</style>
 </head>
 <body>
-  <main class="app">
-    <section class="preview" aria-label="カメラプレビュー">
-      <video id="webcam" autoplay playsinline muted></video>
-      <canvas id="recordCanvas" aria-label="録画プレビュー"></canvas>
-      <div class="overlay">
-        <div id="uiClock" class="stamp">00:00:00</div>
-        <div id="uiTimer" class="stamp">00:00:00</div>
-      </div>
-      <div id="status" class="status" role="status">カメラを準備しています…</div>
-      <div class="controls">
-        <button id="btnSettings" class="control" aria-label="表示設定" title="表示設定">⚙</button>
-        <button id="btnToggleRecord" class="control record recording" aria-label="録画停止">
-          <span class="dot"></span><span id="recordText">録画中</span>
-        </button>
-        <button id="btnSwitchCamera" class="control" aria-label="カメラ切り替え" title="カメラ切り替え">↻</button>
-      </div>
-    </section>
-  </main>
+<main class="app">
+ <section class="preview" aria-label="カメラプレビュー">
+  <video id="camera" autoplay playsinline muted></video><canvas id="canvas"></canvas>
+  <div class="overlay"><div id="clock" class="stamp">00:00:00</div><div id="elapsed" class="stamp">00:00:00</div></div>
+  <div id="status" class="status" role="status">カメラを準備しています…</div>
+  <div class="controls">
+   <button id="settingsButton" class="control" aria-label="表示設定" title="表示設定">⚙</button>
+   <button id="recordButton" class="control record" aria-label="録画停止"><span class="dot"></span><span id="recordLabel">録画準備中</span></button>
+   <button id="switchButton" class="control" aria-label="カメラ切り替え" title="カメラ切り替え">↻</button>
+  </div>
+ </section>
+</main>
 
-  <section id="settingsModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-    <div class="dialog">
-      <h2 id="settingsTitle">表示設定</h2>
-      <div class="field">
-        <label>文字の大きさ（時刻・経過時間共通）</label>
-        <div class="choices" id="sizeChoices">
-          <button type="button" data-size="small" aria-pressed="false">小</button>
-          <button type="button" data-size="medium" aria-pressed="false">中</button>
-          <button type="button" data-size="large" aria-pressed="true">大</button>
-        </div>
-      </div>
-      <div class="field">
-        <label>文字の色（時刻・経過時間共通）</label>
-        <div class="colors" id="colorChoices">
-          <button type="button" class="color" data-color="#ffffff" style="background:#ffffff" aria-label="白" aria-pressed="true"></button>
-          <button type="button" class="color" data-color="#eab308" style="background:#eab308" aria-label="黄" aria-pressed="false"></button>
-          <button type="button" class="color" data-color="#22c55e" style="background:#22c55e" aria-label="緑" aria-pressed="false"></button>
-          <button type="button" class="color" data-color="#06b6d4" style="background:#06b6d4" aria-label="水色" aria-pressed="false"></button>
-          <button type="button" class="color" data-color="#ef4444" style="background:#ef4444" aria-label="赤" aria-pressed="false"></button>
-          <button type="button" class="color" data-color="#ec4899" style="background:#ec4899" aria-label="ピンク" aria-pressed="false"></button>
-          <button type="button" class="color" data-color="#a855f7" style="background:#a855f7" aria-label="紫" aria-pressed="false"></button>
-          <button type="button" class="color" data-color="#3b82f6" style="background:#3b82f6" aria-label="青" aria-pressed="false"></button>
-        </div>
-      </div>
-      <p class="help">設定はこの端末のブラウザーに保存されます。文字は録画映像にも焼き込まれます。</p>
-      <div class="dialog-actions">
-        <button id="btnCloseSettings" class="secondary">キャンセル</button>
-        <button id="btnSaveSettings" class="primary">適用して閉じる</button>
-      </div>
-    </div>
-  </section>
+<section id="settingsDialog" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+ <div class="dialog"><h2 id="settingsTitle">表示設定</h2>
+  <div class="field"><label>文字の大きさ（時刻・経過時間共通）</label><div class="choices" id="sizeChoices">
+   <button type="button" data-size="small" aria-pressed="false">小</button><button type="button" data-size="medium" aria-pressed="false">中</button><button type="button" data-size="large" aria-pressed="true">大</button>
+  </div></div>
+  <div class="field"><label>文字の色（時刻・経過時間共通）</label><div class="colors" id="colorChoices">
+   <button type="button" class="color" data-color="#ffffff" style="background:#fff" aria-label="白" aria-pressed="true"></button>
+   <button type="button" class="color" data-color="#eab308" style="background:#eab308" aria-label="黄" aria-pressed="false"></button>
+   <button type="button" class="color" data-color="#22c55e" style="background:#22c55e" aria-label="緑" aria-pressed="false"></button>
+   <button type="button" class="color" data-color="#06b6d4" style="background:#06b6d4" aria-label="水色" aria-pressed="false"></button>
+   <button type="button" class="color" data-color="#ef4444" style="background:#ef4444" aria-label="赤" aria-pressed="false"></button>
+   <button type="button" class="color" data-color="#ec4899" style="background:#ec4899" aria-label="ピンク" aria-pressed="false"></button>
+   <button type="button" class="color" data-color="#a855f7" style="background:#a855f7" aria-label="紫" aria-pressed="false"></button>
+   <button type="button" class="color" data-color="#3b82f6" style="background:#3b82f6" aria-label="青" aria-pressed="false"></button>
+  </div></div>
+  <p class="help">設定はこの端末に保存されます。時刻と経過時間は録画映像にも記録されます。</p>
+  <div class="actions"><button id="cancelSettings" class="secondary">キャンセル</button><button id="saveSettings" class="primary">適用して閉じる</button></div>
+ </div>
+</section>
 
-  <section id="resultModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="resultTitle">
-    <div class="dialog">
-      <h2 id="resultTitle">録画が完了しました</h2>
-      <video id="previewVideo" controls playsinline></video>
-      <p id="resultInfo" class="help"></p>
-      <div class="dialog-actions">
-        <button id="btnDownload" class="primary">動画を保存</button>
-        <button id="btnCloseResult" class="secondary">閉じる</button>
-      </div>
-      <p class="help">「動画を保存」を押し、Android のダウンロード確認が表示された場合は保存を許可してください。</p>
-    </div>
-  </section>
-
-  <section id="errorModal" class="modal" hidden role="alertdialog" aria-modal="true" aria-labelledby="errorTitle">
-    <div class="dialog">
-      <h2 id="errorTitle">録画を開始できません</h2>
-      <p id="errorMessage" class="error"></p>
-      <p class="help">Chrome で HTTPS のページを開き、サイト設定でカメラ（必要に応じてマイク）を許可してください。</p>
-      <div class="dialog-actions"><button id="btnCloseError" class="primary">閉じる</button></div>
-    </div>
-  </section>
+<section id="resultDialog" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+ <div class="dialog"><h2 id="resultTitle">録画が完了しました</h2><video id="savedVideo" controls playsinline></video><p id="resultInfo" class="help"></p>
+  <div class="actions"><button id="downloadButton" class="primary">動画を保存</button><button id="closeResult" class="secondary">閉じる</button></div>
+  <p class="help">Androidで保存確認が表示された場合は、保存を許可してください。</p>
+ </div>
+</section>
+<section id="errorDialog" class="modal" hidden role="alertdialog" aria-modal="true" aria-labelledby="errorTitle">
+ <div class="dialog"><h2 id="errorTitle">録画を開始できません</h2><p id="errorText" class="error"></p><p class="help">HTTPSで開き、Chromeのサイト設定でカメラ権限を許可してください。</p><div class="actions"><button id="closeError" class="primary">閉じる</button></div></div>
+</section>
 
 <script>
 (() => {
-  'use strict';
-
-  const $ = (id) => document.getElementById(id);
-  const video = $('webcam');
-  const canvas = $('recordCanvas');
-  const ctx = canvas.getContext('2d', { alpha: false });
-  const uiClock = $('uiClock');
-  const uiTimer = $('uiTimer');
-  const statusEl = $('status');
-  const btnRecord = $('btnToggleRecord');
-  const btnSwitch = $('btnSwitchCamera');
-
-  const SIZE_MAP = {
-    small: { css: 18, canvas: 28 },
-    medium: { css: 26, canvas: 40 },
-    large: { css: 34, canvas: 52 }
-  };
-  const DEFAULT_SETTINGS = { size: 'large', color: '#ffffff' };
-  let settings = loadSettings();
-  let stream = null;
-  let recorder = null;
-  let recordedChunks = [];
-  let recording = false;
-  let recordingStartedAt = 0;
-  let elapsedBeforeSegment = 0;
-  let animationId = 0;
-  let facingMode = 'environment';
-  let busyCamera = false;
-  let lastBlobUrl = null;
-  let lastBlob = null;
-  let currentMimeType = 'video/webm';
-  let pendingSwitch = false;
-
-  function loadSettings() {
-    try {
-      const saved = JSON.parse(localStorage.getItem('videoRecSettings') || '{}');
-      return {
-        size: SIZE_MAP[saved.size] ? saved.size : DEFAULT_SETTINGS.size,
-        color: /^#[0-9a-f]{6}$/i.test(saved.color || '') ? saved.color : DEFAULT_SETTINGS.color
-      };
-    } catch (_) {
-      return { ...DEFAULT_SETTINGS };
-    }
+ 'use strict';
+ const $ = id => document.getElementById(id);
+ const video=$('camera'), canvas=$('canvas'), ctx=canvas.getContext('2d',{alpha:false});
+ const clockEl=$('clock'), elapsedEl=$('elapsed'), statusEl=$('status');
+ const sizes={small:{css:18,canvas:28},medium:{css:26,canvas:40},large:{css:34,canvas:52}};
+ const defaults={size:'large',color:'#ffffff'};
+ function loadSettings(){try{const s=JSON.parse(localStorage.getItem('videoRecSettings')||'{}');return {size:sizes[s.size]?s.size:defaults.size,color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:defaults.color}}catch{return {...defaults}}}
+ let settings=loadSettings(), stream=null, recorder=null, chunks=[], recording=false, startedAt=0, timerId=0, raf=0, facing='environment', lastBlob=null, lastUrl=null, mimeType='video/webm', switching=false, cameraBusy=false;
+ const MAX_SECONDS=30*60;
+ function status(text,show=true){statusEl.textContent=text;statusEl.hidden=!show}
+ function hms(value){const n=Math.max(0,Math.floor(value));return [Math.floor(n/3600),Math.floor(n%3600/60),n%60].map(v=>String(v).padStart(2,'0')).join(':')}
+ function nowText(){const d=new Date();return [d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':')}
+ function applySettings(){const z=sizes[settings.size];[clockEl,elapsedEl].forEach(e=>{e.style.fontSize=z.css+'px';e.style.color=settings.color});document.querySelectorAll('[data-size]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.size===settings.size)));document.querySelectorAll('[data-color]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.color===settings.color)))}
+ function resizeCanvas(){const w=video.videoWidth||1280,h=video.videoHeight||720;if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}}
+ function render(){if(video.readyState>=HTMLMediaElement.HAVE_CURRENT_DATA&&video.videoWidth){resizeCanvas();ctx.drawImage(video,0,0,canvas.width,canvas.height);const t=nowText(),e=hms(recording?(Date.now()-startedAt)/1000:0);clockEl.textContent=t;elapsedEl.textContent=e;
+ const z=sizes[settings.size],scale=canvas.width/1280,fs=Math.max(16,Math.round(z.canvas*Math.max(.75,scale))),pad=Math.round(18*Math.max(.75,scale));
+ ctx.save();ctx.font=`800 ${fs}px system-ui,sans-serif`;ctx.fillStyle=settings.color;ctx.textBaseline='top';ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=Math.max(3,Math.round(5*scale));ctx.shadowOffsetX=1;ctx.shadowOffsetY=2;ctx.textAlign='left';ctx.fillText(t,pad,pad);ctx.textAlign='right';ctx.fillText(e,canvas.width-pad,pad);ctx.restore()}
+ raf=requestAnimationFrame(render)}
+ function showError(message){$('errorText').textContent=message;$('errorDialog').hidden=false;status(message,true)}
+ function explain(err){if(['NotAllowedError','SecurityError'].includes(err?.name))return 'カメラまたはマイクの使用が許可されていません。Chromeのサイト設定で権限を許可してください。';if(['NotFoundError','OverconstrainedError'].includes(err?.name))return '利用できるカメラが見つかりません。端末のカメラを確認してください。';if(['NotReadableError','AbortError'].includes(err?.name))return 'カメラを開始できません。他のアプリがカメラを使用していないか確認してください。';return 'カメラを開始できませんでした。'+(err?.message?'\n'+err.message:'')}
+ async function requestStream(mode){
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error('この環境ではカメラを利用できません。HTTPSのページをChromeで開いてください。');
+  let firstError;
+  try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{exact:mode},width:{ideal:1280},height:{ideal:720}},audio:true});facing=mode;return s}catch(e){firstError=e}
+  if(mode==='environment'){
+   try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720}},audio:true});facing='user';status('背面カメラが使えないため、前面カメラに切り替えました。',true);return s}catch(e){
+    try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720}},audio:false});facing='user';status('マイクが使えないため、音声なしで録画します。',true);return s}catch(_){throw new Error(explain(e||firstError))}
+   }
   }
-
-  function saveSettings() {
-    try { localStorage.setItem('videoRecSettings', JSON.stringify(settings)); }
-    catch (err) { console.warn('設定を保存できませんでした', err); }
-  }
-
-  function formatHMS(totalSeconds) {
-    const seconds = Math.max(0, Math.floor(totalSeconds));
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
-  }
-
-  function getClockText(date = new Date()) {
-    return [date.getHours(), date.getMinutes(), date.getSeconds()]
-      .map(n => String(n).padStart(2, '0')).join(':');
-  }
-
-  function getElapsedSeconds() {
-    return elapsedBeforeSegment + (recording ? (Date.now() - recordingStartedAt) / 1000 : 0);
-  }
-
-  function setStatus(message, show = true) {
-    statusEl.textContent = message;
-    statusEl.hidden = !show;
-  }
-
-  function applySettingsToUI() {
-    const size = SIZE_MAP[settings.size];
-    [uiClock, uiTimer].forEach(el => {
-      el.style.fontSize = size.css + 'px';
-      el.style.color = settings.color;
-    });
-    document.querySelectorAll('[data-size]').forEach(btn => {
-      btn.setAttribute('aria-pressed', String(btn.dataset.size === settings.size));
-    });
-    document.querySelectorAll('[data-color]').forEach(btn => {
-      btn.setAttribute('aria-pressed', String(btn.dataset.color === settings.color));
-    });
-  }
-
-  function resizeCanvas() {
-    const width = video.videoWidth || 1280;
-    const height = video.videoHeight || 720;
-    // Canvas resolution follows the camera's actual resolution.
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
-    }
-  }
-
-  function renderFrame() {
-    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
-      resizeCanvas();
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const now = new Date();
-      const clock = getClockText(now);
-      const elapsed = formatHMS(getElapsedSeconds());
-      uiClock.textContent = clock;
-      uiTimer.textContent = elapsed;
-
-      const size = SIZE_MAP[settings.size];
-      const scale = canvas.width / 1280;
-      const fontSize = Math.max(16, Math.round(size.canvas * Math.max(0.75, scale)));
-      const pad = Math.round(18 * Math.max(0.75, scale));
-      ctx.save();
-      ctx.font = `800 ${fontSize}px system-ui, sans-serif`;
-      ctx.fillStyle = settings.color;
-      ctx.textBaseline = 'top';
-      ctx.shadowColor = 'rgba(0,0,0,.9)';
-      ctx.shadowBlur = Math.max(3, Math.round(5 * scale));
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 2;
-      ctx.textAlign = 'left';
-      ctx.fillText(clock, pad, pad);
-      ctx.textAlign = 'right';
-      ctx.fillText(elapsed, canvas.width - pad, pad);
-      ctx.restore();
-    }
-    animationId = requestAnimationFrame(renderFrame);
-  }
-
-  function startRenderLoop() {
-    if (animationId) cancelAnimationFrame(animationId);
-    renderFrame();
-  }
-
-  function chooseMimeType() {
-    const types = [
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm;codecs=vp9',
-      'video/webm;codecs=vp8',
-      'video/webm'
-    ];
-    if (!window.MediaRecorder) return '';
-    return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
-  }
-
-  function showError(message) {
-    $('errorMessage').textContent = message;
-    $('errorModal').hidden = false;
-    setStatus(message, true);
-  }
-
-  async function getCameraStream(preferredMode) {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error('この環境ではカメラを利用できません。HTTPS のページを Chrome で開いてください。');
-    }
-    let cameraError;
-    // exact を先に試して、背面カメラがない場合は前面へフォールバック。
-    try {
-      const result = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: preferredMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true
-      });
-      facingMode = preferredMode;
-      return result;
-    } catch (err) {
-      cameraError = err;
-    }
-
-    if (preferredMode === 'environment') {
-      try {
-        const result = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true
-        });
-        facingMode = 'user';
-        setStatus('背面カメラを利用できないため、前面カメラで録画します。', true);
-        return result;
-      } catch (fallbackError) {
-        // If audio permission/device is the issue, retry camera-only to distinguish it.
-        try {
-          const result = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false
-          });
-          facingMode = 'user';
-          setStatus('マイクを利用できないため、音声なしで録画します。', true);
-          return result;
-        } catch (_) {
-          throw explainMediaError(fallbackError || cameraError);
-        }
-      }
-    }
-
-    // When switching to front camera, retry without audio if only microphone access failed.
-    try {
-      const result = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: preferredMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-      });
-      facingMode = preferredMode;
-      setStatus('マイクを利用できないため、音声なしで録画します。', true);
-      return result;
-    } catch (_) {
-      throw explainMediaError(cameraError);
-    }
-  }
-
-  function explainMediaError(err) {
-    const name = err && err.name;
-    if (name === 'NotAllowedError' || name === 'SecurityError') {
-      return new Error('カメラまたはマイクの使用が許可されていません。Chrome のサイト設定で権限を許可してください。');
-    }
-    if (name === 'NotFoundError' || name === 'OverconstrainedError') {
-      return new Error('利用できるカメラが見つかりません。端末のカメラが他のアプリで使用中でないか確認してください。');
-    }
-    if (name === 'NotReadableError' || name === 'AbortError') {
-      return new Error('カメラを開始できません。ほかのアプリがカメラを使用していないか確認してください。');
-    }
-    return new Error('カメラを開始できませんでした。' + (err && err.message ? '\\n' + err.message : ''));
-  }
-
-  async function initCamera(preferredMode = 'environment') {
-    if (busyCamera) return;
-    busyCamera = true;
-    btnSwitch.disabled = true;
-    setStatus('カメラを準備しています…', true);
-    let newStream = null;
-    try {
-      newStream = await getCameraStream(preferredMode);
-      const oldStream = stream;
-      stream = newStream;
-      video.srcObject = stream;
-      await video.play();
-      resizeCanvas();
-      if (oldStream) oldStream.getTracks().forEach(track => track.stop());
-      setStatus(facingMode === 'user' && preferredMode === 'environment'
-        ? '前面カメラで録画します。' : 'カメラ準備完了', true);
-      startRenderLoop();
-      return true;
-    } catch (err) {
-      if (newStream) newStream.getTracks().forEach(track => track.stop());
-      showError(err.message || 'カメラの初期化に失敗しました。');
-      return false;
-    } finally {
-      busyCamera = false;
-      btnSwitch.disabled = recording;
-    }
-  }
-
-  function setRecordingUI(active) {
-    recording = active;
-    btnRecord.classList.toggle('recording', active);
-    btnRecord.classList.toggle('stopped', !active);
-    btnRecord.setAttribute('aria-label', active ? '録画停止' : '録画開始');
-    $('recordText').textContent = active ? '録画停止' : '録画開始';
-    btnSwitch.disabled = active || busyCamera;
-  }
-
-  function startRecording() {
-    if (recording || !stream) return;
-    // Each saved clip has its own elapsed-time counter, matching the actual clip duration.
-    elapsedBeforeSegment = 0;
-    if (!window.MediaRecorder) {
-      showError('このブラウザーは MediaRecorder に対応していません。最新の Chrome を使用してください。');
-      return;
-    }
-    try {
-      recordedChunks = [];
-      const captureStream = canvas.captureStream(30);
-      const audioTrack = stream.getAudioTracks().find(track => track.readyState === 'live');
-      if (audioTrack) captureStream.addTrack(audioTrack);
-      currentMimeType = chooseMimeType() || 'video/webm';
-      recorder = currentMimeType
-        ? new MediaRecorder(captureStream, { mimeType: currentMimeType })
-        : new MediaRecorder(captureStream);
-      currentMimeType = recorder.mimeType || currentMimeType || 'video/webm';
-
-      recorder.ondataavailable = event => {
-        if (event.data && event.data.size > 0) recordedChunks.push(event.data);
-      };
-      recorder.onerror = event => {
-        console.error('MediaRecorder error', event.error || event);
-        setStatus('録画中にエラーが発生しました。録画を停止してください。', true);
-      };
-      recorder.onstop = () => {
-        const blobType = currentMimeType || 'video/webm';
-        lastBlob = new Blob(recordedChunks, { type: blobType });
-        if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
-        lastBlobUrl = URL.createObjectURL(lastBlob);
-        $('previewVideo').src = lastBlobUrl;
-        $('resultInfo').textContent = `録画時間：約 ${formatHMS(elapsedBeforeSegment)} ／ 形式：${blobType}`;
-        $('resultModal').hidden = false;
-        captureStream.getTracks().forEach(track => {
-          if (track !== audioTrack) track.stop();
-        });
-      };
-      recorder.start(1000);
-      recordingStartedAt = Date.now();
-      setRecordingUI(true);
-      setStatus('録画中です', false);
-    } catch (err) {
-      console.error(err);
-      showError('録画を開始できませんでした。ストレージの空き容量とブラウザー対応状況を確認してください。');
-    }
-  }
-
-  function stopRecording() {
-    if (!recording) return;
-    elapsedBeforeSegment += (Date.now() - recordingStartedAt) / 1000;
-    setRecordingUI(false);
-    if (recorder && recorder.state !== 'inactive') {
-      try { recorder.requestData(); } catch (_) {}
-      recorder.stop();
-    }
-    setStatus('録画を停止しました。動画を保存してください。', true);
-  }
-
-  async function switchCameraAfterStop() {
-    $('resultModal').hidden = true;
-    $('previewVideo').pause();
-    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
-    const ok = await initCamera(nextMode);
-    if (ok) {
-      // A camera switch starts a new clip; the previous clip remains available in the result dialog.
-      elapsedBeforeSegment = 0;
-      startRecording();
-    }
-  }
-
-  btnRecord.addEventListener('click', () => {
-    if (recording) stopRecording();
-    else {
-      if (elapsedBeforeSegment >= 30 * 60) {
-        showError('このアプリの1回の録画目安（30分）に達しました。動画を保存してからページを再読み込みしてください。');
-        return;
-      }
-      startRecording();
-    }
-  });
-
-  btnSwitch.addEventListener('click', () => {
-    if (recording) {
-      pendingSwitch = true;
-      stopRecording();
-    } else {
-      switchCameraAfterStop();
-    }
-  });
-
-  $('btnSettings').addEventListener('click', () => {
-    applySettingsToUI();
-    $('settingsModal').hidden = false;
-  });
-  $('btnCloseSettings').addEventListener('click', () => { $('settingsModal').hidden = true; });
-  $('btnSaveSettings').addEventListener('click', () => {
-    saveSettings();
-    applySettingsToUI();
-    $('settingsModal').hidden = true;
-  });
-  document.querySelectorAll('[data-size]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      settings.size = btn.dataset.size;
-      applySettingsToUI();
-    });
-  });
-  document.querySelectorAll('[data-color]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      settings.color = btn.dataset.color;
-      applySettingsToUI();
-    });
-  });
-
-  $('btnDownload').addEventListener('click', () => {
-    if (!lastBlob || !lastBlobUrl) return;
-    const extension = currentMimeType.includes('mp4') ? 'mp4' : 'webm';
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const link = document.createElement('a');
-    link.href = lastBlobUrl;
-    link.download = `recording_${stamp}.${extension}`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  });
-  $('btnCloseResult').addEventListener('click', () => {
-    $('resultModal').hidden = true;
-    $('previewVideo').pause();
-    if (pendingSwitch) {
-      pendingSwitch = false;
-      switchCameraAfterStop();
-    } else {
-      setStatus('録画停止中です。「録画開始」で続けられます。', true);
-    }
-  });
-  $('btnCloseError').addEventListener('click', () => { $('errorModal').hidden = true; });
-
-  // Avoid accidental screen sleep where supported, but recording does not promise to survive app backgrounding.
-  let wakeLock = null;
-  async function requestWakeLock() {
-    try {
-      if ('wakeLock' in navigator && !wakeLock) {
-        wakeLock = await navigator.wakeLock.request('screen');
-        wakeLock.addEventListener('release', () => { wakeLock = null; });
-      }
-    } catch (_) {}
-  }
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && recording) requestWakeLock();
-  });
-
-  window.addEventListener('beforeunload', () => {
-    if (animationId) cancelAnimationFrame(animationId);
-    if (stream) stream.getTracks().forEach(track => track.stop());
-    if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
-  });
-
-  applySettingsToUI();
-  startRenderLoop();
-  // Initial recording begins after the user has granted camera/microphone permission.
-  initCamera('environment').then(ok => {
-    if (ok) {
-      requestWakeLock();
-      startRecording();
-    }
-  });
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service Worker 登録失敗', err));
-    });
-  }
+  try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:mode},width:{ideal:1280},height:{ideal:720}},audio:false});facing=mode;status('マイクが使えないため、音声なしで録画します。',true);return s}catch(_){throw new Error(explain(firstError))}
+ }
+ async function initCamera(mode){
+  if(cameraBusy)return false;cameraBusy=true;$('switchButton').disabled=true;status('カメラを準備しています…',true);let next=null;
+  try{next=await requestStream(mode);const old=stream;stream=next;video.srcObject=stream;await video.play();resizeCanvas();if(old)old.getTracks().forEach(t=>t.stop());status(facing==='user'&&mode==='environment'?'前面カメラで録画します。':'カメラ準備完了',true);return true}
+  catch(e){if(next)next.getTracks().forEach(t=>t.stop());showError(e.message||'カメラの初期化に失敗しました。');return false}
+  finally{cameraBusy=false;$('switchButton').disabled=recording}
+ }
+ function setRecording(on){recording=on;$('recordButton').classList.toggle('stopped',!on);$('recordLabel').textContent=on?'録画停止':'録画開始';$('recordButton').setAttribute('aria-label',on?'録画停止':'録画開始');$('switchButton').disabled=on||cameraBusy}
+ function supportedMime(){if(!window.MediaRecorder)return '';return ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(t=>MediaRecorder.isTypeSupported(t))||''}
+ function startRecording(){
+  if(recording||!stream)return;if(!window.MediaRecorder){showError('このブラウザーはMediaRecorderに対応していません。Chromeを更新してください。');return}
+  try{chunks=[];const capture=canvas.captureStream(30),audio=stream.getAudioTracks().find(t=>t.readyState==='live');if(audio)capture.addTrack(audio);mimeType=supportedMime();recorder=mimeType?new MediaRecorder(capture,{mimeType}):new MediaRecorder(capture);mimeType=recorder.mimeType||mimeType||'video/webm';
+   recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
+   recorder.onerror=e=>{console.error('MediaRecorder error',e.error||e);status('録画エラーが発生しました。録画を停止してください。',true)};
+   recorder.onstop=()=>{lastBlob=new Blob(chunks,{type:mimeType});if(lastUrl)URL.revokeObjectURL(lastUrl);lastUrl=URL.createObjectURL(lastBlob);$('savedVideo').src=lastUrl;$('resultInfo').textContent=`録画時間：約 ${hms((Date.now()-startedAt)/1000)} ／ 形式：${mimeType} ／ サイズ：${(lastBlob.size/1024/1024).toFixed(1)} MB`;$('resultDialog').hidden=false;capture.getTracks().forEach(t=>{if(t!==audio)t.stop()})};
+   startedAt=Date.now();recorder.start(1000);setRecording(true);status('録画中です',false);timerId=window.setInterval(()=>{if(recording&&(Date.now()-startedAt)/1000>=MAX_SECONDS)stopRecording(true)},500)
+  }catch(e){console.error(e);showError('録画を開始できません。ストレージの空き容量とブラウザー対応状況を確認してください。')}
+ }
+ function stopRecording(auto=false){if(!recording)return;setRecording(false);clearInterval(timerId);if(recorder&&recorder.state!=='inactive'){try{recorder.requestData()}catch{}recorder.stop()}status(auto?'30分に達したため録画を自動停止しました。動画を保存してください。':'録画を停止しました。動画を保存してください。',true)}
+ $('recordButton').addEventListener('click',()=>recording?stopRecording(false):startRecording());
+ $('switchButton').addEventListener('click',async()=>{if(recording||cameraBusy)return;const next=facing==='environment'?'user':'environment';if(await initCamera(next))startRecording()});
+ $('settingsButton').addEventListener('click',()=>{$('settingsDialog').hidden=false;applySettings()});
+ $('cancelSettings').addEventListener('click',()=>{$('settingsDialog').hidden=true;settings=loadSettings();applySettings()});
+ $('saveSettings').addEventListener('click',()=>{try{localStorage.setItem('videoRecSettings',JSON.stringify(settings))}catch{}applySettings();$('settingsDialog').hidden=true});
+ document.querySelectorAll('[data-size]').forEach(b=>b.addEventListener('click',()=>{settings.size=b.dataset.size;applySettings()}));
+ document.querySelectorAll('[data-color]').forEach(b=>b.addEventListener('click',()=>{settings.color=b.dataset.color;applySettings()}));
+ $('downloadButton').addEventListener('click',()=>{if(!lastBlob||!lastUrl)return;const ext=mimeType.includes('mp4')?'mp4':'webm',stamp=new Date().toISOString().replace(/[:.]/g,'-'),a=document.createElement('a');a.href=lastUrl;a.download=`recording_${stamp}.${ext}`;document.body.appendChild(a);a.click();a.remove()});
+ $('closeResult').addEventListener('click',()=>{$('resultDialog').hidden=true;$('savedVideo').pause();status('録画停止中です。「録画開始」で次の録画を開始できます。',true)});
+ $('closeError').addEventListener('click',()=>{$('errorDialog').hidden=true});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&recording&&'wakeLock'in navigator){navigator.wakeLock.request('screen').catch(()=>{})}});
+ window.addEventListener('beforeunload',()=>{cancelAnimationFrame(raf);clearInterval(timerId);if(stream)stream.getTracks().forEach(t=>t.stop());if(lastUrl)URL.revokeObjectURL(lastUrl)});
+ applySettings();render();
+ initCamera('environment').then(ok=>{if(ok)startRecording()});
+ if('serviceWorker'in navigator&&location.protocol!=='file:'){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('Service Worker登録失敗',e)))}
 })();
 </script>
 </body>
