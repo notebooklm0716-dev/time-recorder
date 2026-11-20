@@ -7,7 +7,7 @@
 <meta name="description" content="撮影時刻と録画経過時間を映像に記録する録画アプリ">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="時刻録画">
+<meta name="apple-mobile-web-app-title" content="ソクロク">
 <title>時刻付き録画</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
@@ -46,7 +46,6 @@
   <div class="controls">
    <button id="settingsButton" class="control" aria-label="表示設定" title="表示設定">⚙</button>
    <button id="recordButton" class="control record" aria-label="録画停止"><span class="dot"></span><span id="recordLabel">録画準備中</span></button>
-   <button id="switchButton" class="control" aria-label="カメラ切り替え" title="カメラ切り替え">↻</button>
   </div>
  </section>
 </main>
@@ -90,7 +89,7 @@
  const sizes={small:{css:18,canvas:28},medium:{css:26,canvas:40},large:{css:34,canvas:52}};
  const defaults={size:'large',color:'#ffffff'};
  function loadSettings(){try{const s=JSON.parse(localStorage.getItem('videoRecSettings')||'{}');return {size:sizes[s.size]?s.size:defaults.size,color:/^#[0-9a-f]{6}$/i.test(s.color||'')?s.color:defaults.color}}catch{return {...defaults}}}
- let settings=loadSettings(), stream=null, recorder=null, chunks=[], recording=false, startedAt=0, timerId=0, raf=0, facing='environment', lastBlob=null, lastUrl=null, mimeType='video/webm', switching=false, cameraBusy=false;
+ let settings=loadSettings(), stream=null, recorder=null, chunks=[], recording=false, startedAt=0, timerId=0, raf=0, facing='environment', lastBlob=null, lastUrl=null, mimeType='video/webm', cameraBusy=false;
  const MAX_SECONDS=30*60;
  function status(text,show=true){statusEl.textContent=text;statusEl.hidden=!show}
  function hms(value){const n=Math.max(0,Math.floor(value));return [Math.floor(n/3600),Math.floor(n%3600/60),n%60].map(v=>String(v).padStart(2,'0')).join(':')}
@@ -115,12 +114,12 @@
   try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:mode},width:{ideal:1280},height:{ideal:720}},audio:false});facing=mode;status('マイクが使えないため、音声なしで録画します。',true);return s}catch(_){throw new Error(explain(firstError))}
  }
  async function initCamera(mode){
-  if(cameraBusy)return false;cameraBusy=true;$('switchButton').disabled=true;status('カメラを準備しています…',true);let next=null;
+  if(cameraBusy)return false;cameraBusy=true;status('カメラを準備しています…',true);let next=null;
   try{next=await requestStream(mode);const old=stream;stream=next;video.srcObject=stream;await video.play();resizeCanvas();if(old)old.getTracks().forEach(t=>t.stop());status(facing==='user'&&mode==='environment'?'前面カメラで録画します。':'カメラ準備完了',true);return true}
   catch(e){if(next)next.getTracks().forEach(t=>t.stop());showError(e.message||'カメラの初期化に失敗しました。');return false}
-  finally{cameraBusy=false;$('switchButton').disabled=recording}
+  finally{cameraBusy=false}
  }
- function setRecording(on){recording=on;$('recordButton').classList.toggle('stopped',!on);$('recordLabel').textContent=on?'録画停止':'録画開始';$('recordButton').setAttribute('aria-label',on?'録画停止':'録画開始');$('switchButton').disabled=on||cameraBusy}
+ function setRecording(on){recording=on;$('recordButton').classList.toggle('stopped',!on);$('recordLabel').textContent=on?'録画停止':'録画開始';$('recordButton').setAttribute('aria-label',on?'録画停止':'録画開始');}
  function supportedMime(){if(!window.MediaRecorder)return '';return ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(t=>MediaRecorder.isTypeSupported(t))||''}
  function startRecording(){
   if(recording||!stream)return;if(!window.MediaRecorder){showError('このブラウザーはMediaRecorderに対応していません。Chromeを更新してください。');return}
@@ -133,7 +132,6 @@
  }
  function stopRecording(auto=false){if(!recording)return;setRecording(false);clearInterval(timerId);if(recorder&&recorder.state!=='inactive'){try{recorder.requestData()}catch{}recorder.stop()}status(auto?'30分に達したため録画を自動停止しました。動画を保存してください。':'録画を停止しました。動画を保存してください。',true)}
  $('recordButton').addEventListener('click',()=>recording?stopRecording(false):startRecording());
- $('switchButton').addEventListener('click',async()=>{if(recording||cameraBusy)return;const next=facing==='environment'?'user':'environment';if(await initCamera(next))startRecording()});
  $('settingsButton').addEventListener('click',()=>{$('settingsDialog').hidden=false;applySettings()});
  $('cancelSettings').addEventListener('click',()=>{$('settingsDialog').hidden=true;settings=loadSettings();applySettings()});
  $('saveSettings').addEventListener('click',()=>{try{localStorage.setItem('videoRecSettings',JSON.stringify(settings))}catch{}applySettings();$('settingsDialog').hidden=true});
