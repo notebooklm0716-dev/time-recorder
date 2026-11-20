@@ -1,15 +1,15 @@
 {
-  "id": "./",
-  "name": "時刻付き録画",
-  "short_name": "時刻録画",
-  "description": "撮影時刻と録画経過時間を映像に記録する録画アプリ",
+  "id": "./video-rec",
+  "name": "即！録画",
+  "short_name": "ソクロク",
+  "description": "起動、即！録画。画面上部に時刻と録画時間付き",
   "lang": "ja",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#020617",
-  "theme_color": "#020617",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "prefer_related_applications": false,
   "icons": [
     {
@@ -29,12 +29,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "ワイド画面"
     },
     {
-      "src": "./icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "./screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "モバイル画面"
     }
   ]
 }
