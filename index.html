@@ -104,14 +104,14 @@
  function explain(err){if(['NotAllowedError','SecurityError'].includes(err?.name))return 'カメラまたはマイクの使用が許可されていません。Chromeのサイト設定で権限を許可してください。';if(['NotFoundError','OverconstrainedError'].includes(err?.name))return '利用できるカメラが見つかりません。端末のカメラを確認してください。';if(['NotReadableError','AbortError'].includes(err?.name))return 'カメラを開始できません。他のアプリがカメラを使用していないか確認してください。';return 'カメラを開始できませんでした。'+(err?.message?'\n'+err.message:'')}
  async function requestStream(mode){
   if(!navigator.mediaDevices?.getUserMedia)throw new Error('この環境ではカメラを利用できません。HTTPSのページをChromeで開いてください。');
+  // 高速化: exact指定は単一カメラ端末で必ず失敗し、その分だけ起動が遅れる。
+  // ideal指定で希望の向きを伝え、実際に選ばれた向きはトラック設定から判定する。
+  const video={facingMode:{ideal:mode},width:{ideal:1280},height:{ideal:720}};
+  const detect=s=>{const a=s.getVideoTracks()[0]?.getSettings().facingMode;facing=(a==='user'||a==='environment')?a:mode;if(mode==='environment'&&facing==='user')status('背面カメラが使えないため、前面カメラに切り替えました。',true);return s};
   let firstError;
-  try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{exact:mode},width:{ideal:1280},height:{ideal:720}},audio:true});facing=mode;return s}catch(e){firstError=e}
-  if(mode==='environment'){
-   try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720}},audio:true});facing='user';status('背面カメラが使えないため、前面カメラに切り替えました。',true);return s}catch(e){
-    try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720}},audio:false});facing='user';status('マイクが使えないため、音声なしで録画します。',true);return s}catch(_){throw new Error(explain(e||firstError))}
-   }
-  }
-  try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:mode},width:{ideal:1280},height:{ideal:720}},audio:false});facing=mode;status('マイクが使えないため、音声なしで録画します。',true);return s}catch(_){throw new Error(explain(firstError))}
+  try{return detect(await navigator.mediaDevices.getUserMedia({video,audio:true}))}catch(e){firstError=e}
+  try{const s=detect(await navigator.mediaDevices.getUserMedia({video,audio:false}));status('マイクが使えないため、音声なしで録画します。',true);return s}catch(_){}
+  try{return detect(await navigator.mediaDevices.getUserMedia({video:true,audio:false}))}catch(_){throw new Error(explain(firstError))}
  }
  async function initCamera(mode){
   if(cameraBusy)return false;cameraBusy=true;status('カメラを準備しています…',true);let next=null;
