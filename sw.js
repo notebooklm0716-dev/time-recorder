@@ -1,4 +1,4 @@
-const CACHE_NAME = "video-rec-pwa-v4";
+const CACHE_NAME = "video-rec-pwa-v5";
 const CACHE_PREFIX = "video-rec-pwa-";
 const CORE_ASSETS = ["./", "./index.html", "./manifest.json"];
 const OPTIONAL_ASSETS = ["./icon.svg", "./icon-192x192.png", "./icon-512x512.png", "./apple-touch-icon.png", "./maskable-512x512.png", "./favicon.ico"];

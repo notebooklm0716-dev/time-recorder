@@ -113,9 +113,21 @@
   try{const s=detect(await navigator.mediaDevices.getUserMedia({video,audio:false}));status('マイクが使えないため、音声なしで録画します。',true);return s}catch(_){}
   try{return detect(await navigator.mediaDevices.getUserMedia({video:true,audio:false}))}catch(_){throw new Error(explain(firstError))}
  }
+ // 連続AF: 対応している端末にだけ focusMode 'continuous' を適用する (未対応では何もしない)
+ function applyContinuousFocus(s){
+  const track=s.getVideoTracks()[0];
+  if(!track||typeof track.getCapabilities!=='function')return;
+  try{
+   const caps=track.getCapabilities();
+   if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous')){
+    // 基本形で適用し、受け付けない機種向けに advanced 形でも試す
+    track.applyConstraints({focusMode:'continuous'}).catch(()=>track.applyConstraints({advanced:[{focusMode:'continuous'}]})).catch(()=>{});
+   }
+  }catch(_){/* 対応状況が取れない端末では標準動作のまま */}
+ }
  async function initCamera(mode){
   if(cameraBusy)return false;cameraBusy=true;status('カメラを準備しています…',true);let next=null;
-  try{next=await requestStream(mode);const old=stream;stream=next;video.srcObject=stream;await video.play();resizeCanvas();if(old)old.getTracks().forEach(t=>t.stop());status(facing==='user'&&mode==='environment'?'前面カメラで録画します。':'カメラ準備完了',true);return true}
+  try{next=await requestStream(mode);const old=stream;stream=next;video.srcObject=stream;await video.play();resizeCanvas();applyContinuousFocus(stream);if(old)old.getTracks().forEach(t=>t.stop());status(facing==='user'&&mode==='environment'?'前面カメラで録画します。':'カメラ準備完了',true);return true}
   catch(e){if(next)next.getTracks().forEach(t=>t.stop());showError(e.message||'カメラの初期化に失敗しました。');return false}
   finally{cameraBusy=false}
  }
